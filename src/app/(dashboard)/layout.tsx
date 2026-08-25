@@ -10,13 +10,11 @@ export default async function DashboardLayout({
   const { session, membership } = await requireActiveMembership();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="workspace-bg flex min-h-screen">
       <DashboardSidebar />
       <div className="flex min-h-screen flex-1 flex-col">
         <DashboardHeader user={session.user} membership={membership} />
-        <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
+import { motion } from "framer-motion";
 
 import { signupAction, type SignupFormState } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { glassClasses } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 const initialState: SignupFormState = {};
 
@@ -23,7 +26,12 @@ export function SignupForm() {
   const [state, formAction, pending] = useActionState(signupAction, initialState);
 
   return (
-    <Card>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
+    <Card className={cn(glassClasses, "ring-0")}>
       <CardHeader>
         <CardTitle className="text-xl">Create your command center</CardTitle>
         <CardDescription>
@@ -92,7 +100,7 @@ export function SignupForm() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {pending ? <CircleNotch className="size-4 animate-spin" /> : null}
             Create organization
           </Button>
           <p className="text-center text-sm text-muted-foreground">
@@ -104,5 +112,6 @@ export function SignupForm() {
         </CardFooter>
       </form>
     </Card>
+    </motion.div>
   );
 }

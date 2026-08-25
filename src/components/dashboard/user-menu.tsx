@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { SignOut } from "@phosphor-icons/react/ssr";
 
 import { signOutAction } from "@/lib/auth/actions";
 import { ROLE_LABELS, type Role } from "@/lib/config/roles";
@@ -66,7 +66,7 @@ export function UserMenu({
         <form action={signOutAction}>
           <DropdownMenuItem asChild>
             <button type="submit" className="w-full">
-              <LogOut className="size-4" />
+              <SignOut className="size-4" />
               Sign out
             </button>
           </DropdownMenuItem>

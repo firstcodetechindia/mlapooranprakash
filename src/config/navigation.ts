@@ -1,37 +1,37 @@
-import type { LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
 import {
-  LayoutDashboard,
-  Radar,
+  SquaresFour,
+  Target,
   CheckSquare,
-  CalendarClock,
+  CalendarBlank,
   Image as ImageIcon,
   BookOpen,
-  Rss,
-  BarChart3,
+  RssSimple,
+  ChartBar,
   ShieldCheck,
-  Settings,
-} from "lucide-react";
+  Gear,
+} from "@phosphor-icons/react/ssr";
 
 export interface NavItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: Icon;
   /** Set once the route behind this item actually exists. */
   available: boolean;
 }
 
 export const primaryNav: NavItem[] = [
-  { label: "Today", href: "/dashboard", icon: LayoutDashboard, available: true },
-  { label: "Content Radar", href: "/radar", icon: Radar, available: false },
+  { label: "Today", href: "/dashboard", icon: SquaresFour, available: true },
+  { label: "Content Radar", href: "/radar", icon: Target, available: false },
   { label: "Approval Queue", href: "/approvals", icon: CheckSquare, available: false },
-  { label: "Calendar", href: "/calendar", icon: CalendarClock, available: false },
+  { label: "Calendar", href: "/calendar", icon: CalendarBlank, available: false },
   { label: "Media Library", href: "/media", icon: ImageIcon, available: false },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, available: false },
-  { label: "Reference Sources", href: "/sources/reference-accounts", icon: Rss, available: false },
-  { label: "Analytics", href: "/analytics", icon: BarChart3, available: false },
+  { label: "Reference Sources", href: "/sources/reference-accounts", icon: RssSimple, available: false },
+  { label: "Analytics", href: "/analytics", icon: ChartBar, available: false },
   { label: "Audit Log", href: "/audit", icon: ShieldCheck, available: false },
 ];
 
 export const settingsNav: NavItem[] = [
-  { label: "Team & Roles", href: "/settings/team", icon: Settings, available: true },
+  { label: "Team & Roles", href: "/settings/team", icon: Gear, available: true },
 ];

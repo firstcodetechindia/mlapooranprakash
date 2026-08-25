@@ -1,4 +1,4 @@
-import { Bell, CheckSquare } from "lucide-react";
+import { Bell, CheckSquare } from "@phosphor-icons/react/ssr";
 import type { Session } from "next-auth";
 
 import type { SessionMembership } from "@/types/next-auth";
@@ -10,6 +10,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { glassClasses } from "@/lib/glass";
+import { cn } from "@/lib/utils";
 
 function formatToday() {
   return new Date().toLocaleDateString("en-US", {
@@ -28,7 +30,12 @@ export function DashboardHeader({
   membership: SessionMembership;
 }) {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+    <header
+      className={cn(
+        glassClasses,
+        "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-x-0 border-t-0 px-4",
+      )}
+    >
       <MobileNav />
       <div className="flex flex-1 items-center gap-3 overflow-hidden">
         <span className="truncate text-sm font-medium">
