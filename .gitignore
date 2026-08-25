@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# local-disk storage provider fallback (see src/lib/storage) — dev only,
+# never used when STORAGE_* env vars point at real S3-compatible storage
+/.data

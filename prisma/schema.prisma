@@ -82,11 +82,13 @@ model Organization {
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
 
-  memberships       Membership[]
-  auditLogs         AuditLog[]
-  politicianProfile PoliticianProfile?
-  referenceSources  ReferenceSource[]
-  referencePosts    ReferencePost[]
+  memberships        Membership[]
+  auditLogs          AuditLog[]
+  politicianProfile  PoliticianProfile?
+  referenceSources   ReferenceSource[]
+  referencePosts     ReferencePost[]
+  knowledgeDocuments KnowledgeDocument[]
+  knowledgeChunks    KnowledgeChunk[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -106,8 +108,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  memberships Membership[]
-  auditLogs   AuditLog[]
+  memberships         Membership[]
+  auditLogs           AuditLog[]
+  uploadedDocuments   KnowledgeDocument[]
 
   @@index([email])
 }
@@ -299,4 +302,87 @@ model ReferencePost {
   @@index([organizationId])
   @@index([referenceSourceId])
   @@index([publishedAt])
+}
+
+enum DocumentSourceType {
+  BIOGRAPHY
+  FACT_SHEET
+  SPEECH
+  PREVIOUS_POST
+  PRESS_RELEASE
+  POLICY_DOCUMENT
+  EVENT_INFO
+  OTHER
+}
+
+enum DocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+/// Distinct from DocumentStatus (is it *processed*): this tracks whether a
+/// human has signed off on the document being safe/appropriate for the AI
+/// to draw on. A READY document can still be PENDING approval.
+enum DocumentApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// An uploaded source document (biography, fact sheet, speech, previous
+/// post, press release, policy doc, event info) that gets parsed, chunked,
+/// and embedded so content generation can retrieve from it. The extracted
+/// text and its provenance (uploadedBy, sourceType) matter for the
+/// VERIFIED vs UNVERIFIED distinction fact-checking enforces later.
+model KnowledgeDocument {
+  id             String @id @default(uuid())
+  organizationId String
+
+  title         String
+  sourceType    DocumentSourceType @default(OTHER)
+  fileName      String
+  mimeType      String
+  fileSize      Int
+  storageKey    String
+  extractedText String?
+
+  status          DocumentStatus         @default(PROCESSING)
+  approvalStatus  DocumentApprovalStatus @default(PENDING)
+  processingError String?
+
+  uploadedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?            @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  chunks       KnowledgeChunk[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+/// A retrieval-sized slice of a KnowledgeDocument with its embedding.
+/// Embedding similarity is computed in application code (see
+/// src/lib/knowledge/search.ts) rather than in Postgres — the pgvector
+/// extension isn't provisioned yet; fine at this data volume, worth
+/// revisiting once a real corpus is in production.
+model KnowledgeChunk {
+  id             String @id @default(uuid())
+  organizationId String
+  documentId     String
+
+  chunkIndex Int
+  content    String
+  embedding  Float[]
+
+  createdAt DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([documentId])
 }
