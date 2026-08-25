@@ -1,0 +1,107 @@
+// Political Social Command Center — database schema.
+//
+// This file grows incrementally with each build phase (see /docs/architecture.md).
+// Phase 1 ships only the foundation needed for authentication, multi-tenant
+// organizations, and role-based access control. Every later model added in
+// subsequent phases must include an organizationId (or a path to one) so
+// tenant isolation can be enforced consistently — see /src/lib/security.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Roles are intentionally global (not per-organization) so authorization
+/// checks throughout the app can pattern-match on a small, fixed set.
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  APPROVER
+  ANALYST
+  VIEWER
+}
+
+/// A tenant. Every politician/comms-team account is scoped to one
+/// Organization. No query anywhere in the app should read across
+/// organizationId boundaries — see requireOrganizationAccess() in
+/// /src/lib/security/authorize.ts.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+
+  @@index([slug])
+}
+
+/// An authenticated person. A User can belong to more than one Organization
+/// (e.g. an agency staffer working multiple accounts), with a distinct Role
+/// per Organization via Membership.
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  /// Null when the user has never set a password (e.g. invited but not yet activated).
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+
+  @@index([email])
+}
+
+/// Join model carrying the user's Role within one Organization.
+model Membership {
+  id             String    @id @default(uuid())
+  userId         String
+  organizationId String
+  role           Role      @default(VIEWER)
+  invitedAt      DateTime  @default(now())
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+/// Immutable append-only trail of every sensitive action taken in the app.
+/// Nothing in the normal application UI issues UPDATE or DELETE against this
+/// table — see /src/lib/audit/log.ts, the only writer.
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         String
+  resourceType   String
+  resourceId     String?
+  previousState  Json?
+  newState       Json?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
