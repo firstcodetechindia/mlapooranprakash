@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db/client";
 import { recordAuditLog } from "@/lib/audit/log";
+import { trialEndsAt } from "@/lib/billing/plans";
 
 export const signupSchema = z.object({
   organizationName: z.string().trim().min(2).max(120),
@@ -54,7 +55,7 @@ export async function createOrganizationWithOwner(input: SignupInput) {
 
   const result = await db.$transaction(async (tx) => {
     const organization = await tx.organization.create({
-      data: { name: input.organizationName, slug },
+      data: { name: input.organizationName, slug, trialEndsAt: trialEndsAt() },
     });
 
     const user = await tx.user.create({

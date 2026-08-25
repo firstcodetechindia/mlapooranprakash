@@ -10,6 +10,7 @@ import {
   ChartBar,
   ShieldCheck,
   Gear,
+  CreditCard,
 } from "@phosphor-icons/react/ssr";
 
 export interface NavItem {
@@ -34,4 +35,5 @@ export const primaryNav: NavItem[] = [
 
 export const settingsNav: NavItem[] = [
   { label: "Team & Roles", href: "/settings/team", icon: Gear, available: true },
+  { label: "Billing", href: "/settings/billing", icon: CreditCard, available: true },
 ];

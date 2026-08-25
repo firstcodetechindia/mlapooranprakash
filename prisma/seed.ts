@@ -15,12 +15,26 @@ const DEMO_PASSWORD = "Demo12345!";
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
 
+  const periodEnd = new Date();
+  periodEnd.setDate(periodEnd.getDate() + 30);
+
+  // Seeded on Pro so the demo account shows the paid experience, not a
+  // ticking trial countdown. Applied on `update` too (not just `create`)
+  // so re-running the seed against an org created by an earlier version
+  // of this script still converges to the same state.
+  const billingFields = {
+    plan: "PRO" as const,
+    subscriptionStatus: "ACTIVE" as const,
+    currentPeriodEnd: periodEnd,
+  };
+
   const organization = await db.organization.upsert({
     where: { slug: "demo-office" },
-    update: {},
+    update: billingFields,
     create: {
       name: "Demo Office of Public Affairs",
       slug: "demo-office",
+      ...billingFields,
     },
   });
 

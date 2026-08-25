@@ -26,6 +26,22 @@ enum Role {
   VIEWER
 }
 
+/// Self-serve tiers. ENTERPRISE is sales-assisted (no Stripe Checkout price
+/// attached) — see /src/lib/billing/plans.ts for what each tier unlocks.
+enum SubscriptionPlan {
+  TRIAL
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
 /// A tenant. Every politician/comms-team account is scoped to one
 /// Organization. No query anywhere in the app should read across
 /// organizationId boundaries — see requireOrganizationAccess() in
@@ -37,10 +53,21 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Every org starts on a 14-day TRIAL, no card required.
+  plan                 SubscriptionPlan   @default(TRIAL)
+  subscriptionStatus   SubscriptionStatus @default(TRIALING)
+  trialEndsAt          DateTime?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
   memberships Membership[]
   auditLogs   AuditLog[]
 
   @@index([slug])
+  @@index([stripeCustomerId])
 }
 
 /// An authenticated person. A User can belong to more than one Organization
