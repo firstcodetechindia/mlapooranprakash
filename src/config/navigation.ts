@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Gear,
   CreditCard,
+  UserCircle,
 } from "@phosphor-icons/react/ssr";
 
 export interface NavItem {
@@ -34,6 +35,7 @@ export const primaryNav: NavItem[] = [
 ];
 
 export const settingsNav: NavItem[] = [
+  { label: "Politician Profile", href: "/settings/politician", icon: UserCircle, available: true },
   { label: "Team & Roles", href: "/settings/team", icon: Gear, available: true },
   { label: "Billing", href: "/settings/billing", icon: CreditCard, available: true },
 ];

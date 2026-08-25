@@ -42,6 +42,25 @@ enum SubscriptionStatus {
   INCOMPLETE
 }
 
+/// Default voice the AI content agent writes in unless a specific draft
+/// overrides it (e.g. a CONDOLENCE post written while the org's default
+/// tone is CONVERSATIONAL).
+enum Tone {
+  FORMAL
+  WARM
+  PUBLIC_SERVICE
+  CONVERSATIONAL
+  CELEBRATORY
+  CONDOLENCE
+  INFORMATIONAL
+}
+
+enum ContentLanguage {
+  HINDI
+  ENGLISH
+  HINGLISH
+}
+
 /// A tenant. Every politician/comms-team account is scoped to one
 /// Organization. No query anywhere in the app should read across
 /// organizationId boundaries — see requireOrganizationAccess() in
@@ -63,8 +82,9 @@ model Organization {
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
 
-  memberships Membership[]
-  auditLogs   AuditLog[]
+  memberships       Membership[]
+  auditLogs         AuditLog[]
+  politicianProfile PoliticianProfile?
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -131,4 +151,68 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@index([action])
+}
+
+/// The constituency/district a politician represents. Kept separate from
+/// PoliticianProfile (rather than inlined) because it carries its own
+/// structured facts — population, key issues — that content generation
+/// reads independently of the politician's personal voice/style fields.
+model Constituency {
+  id          String   @id @default(uuid())
+  name        String
+  state       String?
+  country     String   @default("India")
+  description String?
+  population  Int?
+  keyIssues   String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  politicianProfile PoliticianProfile?
+}
+
+/// One per Organization — the politician's identity, voice, and knowledge
+/// the AI content/research agents draw on. Every array field here is a
+/// plain string list rather than a related table: they're short,
+/// unstructured, and edited as a set (add/remove a phrase), which a
+/// Postgres text array fits better than a join table would for Phase 2.
+/// Full source documents (speeches, fact sheets) belong in the Knowledge
+/// Base (KnowledgeDocument), not here.
+model PoliticianProfile {
+  id                String  @id @default(uuid())
+  organizationId    String  @unique
+  name              String
+  publicDesignation String?
+  politicalParty    String?
+  bio               String?
+  officialWebsite   String?
+  xHandle           String?
+  facebookHandle    String?
+  instagramHandle   String?
+
+  preferredTone      Tone              @default(INFORMATIONAL)
+  preferredLanguages ContentLanguage[]
+
+  commonPhrases      String[]
+  wordsToAvoid        String[]
+  hashtagPreferences  String[]
+  contentPillars      String[]
+  importantProjects   String[]
+  publicAchievements  String[]
+  officialPositions   String[]
+  frequentTopics      String[]
+  /// Short, user-attested facts (e.g. "Widened NH-44 in 2024") distinct
+  /// from AI-derived claims — see the VERIFIED/UNVERIFIED/INFERENCE
+  /// distinction fact-checking enforces in a later phase.
+  approvedFacts       String[]
+
+  constituencyId String?       @unique
+  constituency   Constituency? @relation(fields: [constituencyId], references: [id], onDelete: SetNull)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
 }
