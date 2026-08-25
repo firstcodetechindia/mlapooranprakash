@@ -29,7 +29,7 @@ export const primaryNav: NavItem[] = [
   { label: "Calendar", href: "/calendar", icon: CalendarBlank, available: false },
   { label: "Media Library", href: "/media", icon: ImageIcon, available: false },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, available: false },
-  { label: "Reference Sources", href: "/sources/reference-accounts", icon: RssSimple, available: false },
+  { label: "Reference Sources", href: "/sources/reference-accounts", icon: RssSimple, available: true },
   { label: "Analytics", href: "/analytics", icon: ChartBar, available: false },
   { label: "Audit Log", href: "/audit", icon: ShieldCheck, available: false },
 ];

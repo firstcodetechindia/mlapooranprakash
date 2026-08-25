@@ -85,6 +85,8 @@ model Organization {
   memberships       Membership[]
   auditLogs         AuditLog[]
   politicianProfile PoliticianProfile?
+  referenceSources  ReferenceSource[]
+  referencePosts    ReferencePost[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -215,4 +217,86 @@ model PoliticianProfile {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+enum SourcePlatform {
+  X
+  FACEBOOK
+  INSTAGRAM
+  RSS
+  WEBSITE
+  OTHER
+}
+
+enum SourceCategory {
+  POLITICIAN
+  GOVERNMENT
+  GOVERNMENT_DEPARTMENT
+  ADMINISTRATION
+  NEWS
+  PUBLIC_ORGANIZATION
+  LOCAL_INSTITUTION
+  OTHER
+}
+
+enum MonitoringFrequency {
+  HOURLY
+  EVERY_6_HOURS
+  DAILY
+  WEEKLY
+}
+
+/// An approved public source the team monitors for content ideas. Only
+/// RSS/WEBSITE sources can actually be fetched right now — X/Facebook/
+/// Instagram require official API access this app doesn't have configured
+/// yet, and the UI must say so rather than attempt any workaround (no
+/// scraping — see /docs or the product guardrails in README).
+model ReferenceSource {
+  id             String @id @default(uuid())
+  organizationId String
+
+  name                String
+  platform            SourcePlatform
+  category            SourceCategory
+  handle              String?
+  url                 String
+  priority            Int                 @default(3)
+  enabled             Boolean             @default(true)
+  monitoringFrequency MonitoringFrequency @default(DAILY)
+
+  lastFetchedAt   DateTime?
+  lastFetchStatus String?
+  lastFetchError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referencePosts ReferencePost[]
+
+  @@index([organizationId])
+  @@index([platform])
+}
+
+/// One ingested item from a ReferenceSource fetch. Deliberately raw/
+/// unprocessed — the Content Radar (a later phase) reads these and scores
+/// them into ContentOpportunity rows; this table is just the ingestion log.
+model ReferencePost {
+  id                String    @id @default(uuid())
+  organizationId    String
+  referenceSourceId String
+  externalId        String
+  title             String?
+  content           String?
+  url               String?
+  publishedAt       DateTime?
+  fetchedAt         DateTime  @default(now())
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referenceSource ReferenceSource @relation(fields: [referenceSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([referenceSourceId, externalId])
+  @@index([organizationId])
+  @@index([referenceSourceId])
+  @@index([publishedAt])
 }
