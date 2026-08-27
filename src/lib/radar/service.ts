@@ -24,6 +24,7 @@ export function getOpportunity(organizationId: string, opportunityId: string) {
     include: {
       referencePost: { include: { referenceSource: true } },
       researchReport: true,
+      drafts: { select: { id: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 }

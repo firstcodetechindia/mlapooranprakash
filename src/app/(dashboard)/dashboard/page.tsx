@@ -11,6 +11,8 @@ import {
 import { requireActiveMembership } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/config/roles";
 import { listOpportunities } from "@/lib/radar/service";
+import { listDrafts } from "@/lib/drafts/service";
+import { DRAFT_STATUS_LABELS, PLATFORM_LABELS } from "@/lib/config/content";
 import {
   Card,
   CardContent,
@@ -31,6 +33,7 @@ export default async function DashboardPage() {
   const firstName = session.user.name?.split(" ")[0] ?? session.user.email;
   const opportunities = await listOpportunities(membership.organizationId);
   const topOpportunities = opportunities.slice(0, 4);
+  const pendingDrafts = await listDrafts(membership.organizationId, ["FACT_CHECK", "NEEDS_REVIEW"]);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -98,11 +101,31 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={CheckSquare}
-                title="Nothing awaiting approval"
-                description="AI-generated drafts will land here once content generation is enabled."
-              />
+              {pendingDrafts.length === 0 ? (
+                <EmptyState
+                  icon={CheckSquare}
+                  title="Nothing awaiting approval"
+                  description="Generate a draft from a researched opportunity in Content Radar to see it here."
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {pendingDrafts.slice(0, 4).map((draft) => (
+                    <Link
+                      key={draft.id}
+                      href={`/drafts/${draft.id}`}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80"
+                    >
+                      <span className="truncate text-sm">
+                        {draft.contentOpportunity?.topic ?? "Untitled draft"}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Badge variant="outline">{PLATFORM_LABELS[draft.platform]}</Badge>
+                        <Badge variant="secondary">{DRAFT_STATUS_LABELS[draft.status]}</Badge>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </AnimatedCard>

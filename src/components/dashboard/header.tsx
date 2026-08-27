@@ -1,10 +1,13 @@
+import Link from "next/link";
 import { Bell, CheckSquare } from "@phosphor-icons/react/ssr";
 import type { Session } from "next-auth";
 
 import type { SessionMembership } from "@/types/next-auth";
+import { db } from "@/lib/db/client";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -22,13 +25,17 @@ function formatToday() {
   });
 }
 
-export function DashboardHeader({
+export async function DashboardHeader({
   user,
   membership,
 }: {
   user: Session["user"];
   membership: SessionMembership;
 }) {
+  const pendingCount = await db.draft.count({
+    where: { organizationId: membership.organizationId, status: { in: ["FACT_CHECK", "NEEDS_REVIEW"] } },
+  });
+
   return (
     <header
       className={cn(
@@ -48,12 +55,26 @@ export function DashboardHeader({
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative" disabled>
-              <CheckSquare className="size-4" />
-              <span className="sr-only">Approval queue</span>
+            <Button variant="ghost" size="icon" className="relative" asChild>
+              <Link href="/approvals">
+                <CheckSquare className="size-4" />
+                {pendingCount > 0 ? (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full px-1 text-[10px]"
+                  >
+                    {pendingCount}
+                  </Badge>
+                ) : null}
+                <span className="sr-only">Approval queue</span>
+              </Link>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Approval queue — nothing waiting yet</TooltipContent>
+          <TooltipContent>
+            {pendingCount > 0
+              ? `${pendingCount} draft${pendingCount === 1 ? "" : "s"} awaiting review`
+              : "Approval queue — nothing waiting yet"}
+          </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>

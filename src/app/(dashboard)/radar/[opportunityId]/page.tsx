@@ -5,7 +5,9 @@ import { ArrowLeft } from "@phosphor-icons/react/ssr";
 
 import { requireActiveMembership } from "@/lib/auth/session";
 import { getOpportunity } from "@/lib/radar/service";
+import { hasRoleAtLeast } from "@/lib/security/authorize";
 import type { ResearchFact, ResearchSource } from "@/lib/research/agent";
+import { CreateDraftForm } from "./create-draft-form";
 
 import {
   Card,
@@ -36,6 +38,7 @@ export default async function OpportunityDetailPage({
   const { opportunityId } = await params;
   const { membership } = await requireActiveMembership();
   const opportunity = await getOpportunity(membership.organizationId, opportunityId);
+  const canEdit = hasRoleAtLeast(membership.role, "EDITOR");
 
   if (!opportunity) notFound();
 
@@ -142,6 +145,20 @@ export default async function OpportunityDetailPage({
                 ))}
               </CardContent>
             </Card>
+          ) : null}
+
+          {canEdit ? (
+            opportunity.drafts.length > 0 ? (
+              <Button variant="outline" asChild>
+                <Link href={`/drafts/${opportunity.drafts[0].id}`}>View draft</Link>
+              </Button>
+            ) : (
+              <CreateDraftForm
+                organizationId={membership.organizationId}
+                researchReportId={report.id}
+                contentOpportunityId={opportunity.id}
+              />
+            )
           ) : null}
         </>
       )}

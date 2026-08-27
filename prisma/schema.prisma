@@ -91,6 +91,9 @@ model Organization {
   knowledgeChunks     KnowledgeChunk[]
   contentOpportunities ContentOpportunity[]
   researchReports     ResearchReport[]
+  drafts              Draft[]
+  draftRevisions      DraftRevision[]
+  factChecks          FactCheck[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -114,6 +117,10 @@ model User {
   auditLogs           AuditLog[]
   uploadedDocuments   KnowledgeDocument[]
   researchReports     ResearchReport[]
+  draftsCreated       Draft[]         @relation("DraftCreatedBy")
+  draftsApproved      Draft[]         @relation("DraftApprovedBy")
+  draftsRejected      Draft[]         @relation("DraftRejectedBy")
+  draftRevisions      DraftRevision[]
 
   @@index([email])
 }
@@ -430,6 +437,7 @@ model ContentOpportunity {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   referencePost  ReferencePost?  @relation(fields: [referencePostId], references: [id], onDelete: SetNull)
   researchReport ResearchReport?
+  drafts         Draft[]
 
   @@index([organizationId])
   @@index([status])
@@ -469,6 +477,121 @@ model ResearchReport {
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy           User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
   contentOpportunity  ContentOpportunity? @relation(fields: [contentOpportunityId], references: [id], onDelete: SetNull)
+  draft               Draft?
 
   @@index([organizationId])
+}
+
+enum Platform {
+  X
+  FACEBOOK
+  INSTAGRAM
+}
+
+/// Mirrors the workflow in the product spec: AI prepares, fact-check runs,
+/// a human reviews, only then can it be scheduled/published. No code path
+/// may move a Draft to PUBLISHED without passing through APPROVED first —
+/// see requireOrganizationAccess(..., "APPROVER") in the approve action.
+enum DraftStatus {
+  DRAFT
+  FACT_CHECK
+  NEEDS_REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  REJECTED
+  FAILED
+}
+
+model Draft {
+  id                   String  @id @default(uuid())
+  organizationId       String
+  researchReportId     String? @unique
+  contentOpportunityId String?
+
+  platform Platform
+  format   String
+  language ContentLanguage
+  tone     Tone
+  body     String
+  hashtags String[]
+  cta      String?
+
+  status         DraftStatus @default(DRAFT)
+  rejectionReason String?
+
+  createdById  String?
+  approvedById String?
+  approvedAt   DateTime?
+  rejectedById String?
+  rejectedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  researchReport      ResearchReport?     @relation(fields: [researchReportId], references: [id], onDelete: SetNull)
+  contentOpportunity  ContentOpportunity? @relation(fields: [contentOpportunityId], references: [id], onDelete: SetNull)
+  createdBy    User? @relation("DraftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy   User? @relation("DraftApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedBy   User? @relation("DraftRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
+
+  revisions  DraftRevision[]
+  factChecks FactCheck[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+/// Every AI or human modification to a draft's body creates one of these —
+/// nothing overwrites draft.body without leaving a trail. See the Content
+/// Editor (src/app/(dashboard)/drafts/[draftId]).
+model DraftRevision {
+  id             String @id @default(uuid())
+  organizationId String
+  draftId        String
+
+  body          String
+  changeType    String
+  changeSummary String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  draft        Draft        @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([draftId])
+}
+
+enum FactCheckStatus {
+  VERIFIED
+  PARTIALLY_VERIFIED
+  UNVERIFIED
+  CONFLICTING
+}
+
+/// One claim extracted from a Draft's body, checked against its linked
+/// ResearchReport's facts. A draft with any UNVERIFIED/CONFLICTING claim
+/// must show a visible warning before approval — see the Content Editor
+/// and /approvals list.
+model FactCheck {
+  id             String @id @default(uuid())
+  organizationId String
+  draftId        String
+
+  claim       String
+  status      FactCheckStatus
+  explanation String
+  source      String?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  draft        Draft         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([draftId])
 }

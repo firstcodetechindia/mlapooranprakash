@@ -25,7 +25,7 @@ export interface NavItem {
 export const primaryNav: NavItem[] = [
   { label: "Today", href: "/dashboard", icon: SquaresFour, available: true },
   { label: "Content Radar", href: "/radar", icon: Target, available: true },
-  { label: "Approval Queue", href: "/approvals", icon: CheckSquare, available: false },
+  { label: "Approval Queue", href: "/approvals", icon: CheckSquare, available: true },
   { label: "Calendar", href: "/calendar", icon: CalendarBlank, available: false },
   { label: "Media Library", href: "/media", icon: ImageIcon, available: false },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, available: true },
