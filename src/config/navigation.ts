@@ -27,11 +27,11 @@ export const primaryNav: NavItem[] = [
   { label: "Content Radar", href: "/radar", icon: Target, available: true },
   { label: "Approval Queue", href: "/approvals", icon: CheckSquare, available: true },
   { label: "Calendar", href: "/calendar", icon: CalendarBlank, available: false },
-  { label: "Media Library", href: "/media", icon: ImageIcon, available: false },
+  { label: "Media Library", href: "/media", icon: ImageIcon, available: true },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, available: true },
   { label: "Reference Sources", href: "/sources/reference-accounts", icon: RssSimple, available: true },
   { label: "Analytics", href: "/analytics", icon: ChartBar, available: false },
-  { label: "Audit Log", href: "/audit", icon: ShieldCheck, available: false },
+  { label: "Audit Log", href: "/audit", icon: ShieldCheck, available: true },
 ];
 
 export const settingsNav: NavItem[] = [

@@ -94,6 +94,9 @@ model Organization {
   drafts              Draft[]
   draftRevisions      DraftRevision[]
   factChecks          FactCheck[]
+  mediaAssets         MediaAsset[]
+  socialAccounts      SocialAccount[]
+  socialPosts         SocialPost[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -121,6 +124,8 @@ model User {
   draftsApproved      Draft[]         @relation("DraftApprovedBy")
   draftsRejected      Draft[]         @relation("DraftRejectedBy")
   draftRevisions      DraftRevision[]
+  mediaAssets         MediaAsset[]
+  connectedSocialAccounts SocialAccount[]
 
   @@index([email])
 }
@@ -519,6 +524,9 @@ model Draft {
 
   status         DraftStatus @default(DRAFT)
   rejectionReason String?
+  /// Set when status transitions to SCHEDULED. A publish attempt before
+  /// this time is rejected — see publishDraft() in src/lib/social/publish.ts.
+  scheduledAt    DateTime?
 
   createdById  String?
   approvedById String?
@@ -538,9 +546,11 @@ model Draft {
 
   revisions  DraftRevision[]
   factChecks FactCheck[]
+  socialPost SocialPost?
 
   @@index([organizationId])
   @@index([status])
+  @@index([scheduledAt])
 }
 
 /// Every AI or human modification to a draft's body creates one of these —
@@ -594,4 +604,109 @@ model FactCheck {
 
   @@index([organizationId])
   @@index([draftId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+/// Uploaded photos/videos the team can attach to drafts. Served only
+/// through /api/media/[assetId] (checks org membership first) — never
+/// through a public /public path, same reasoning as KnowledgeDocument
+/// storage. See src/lib/storage.
+model MediaAsset {
+  id             String @id @default(uuid())
+  organizationId String
+
+  fileName   String
+  mimeType   String
+  fileSize   Int
+  storageKey String
+  mediaType  MediaType
+  tags       String[]
+  altText    String?
+
+  uploadedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([mediaType])
+}
+
+enum SocialAccountStatus {
+  CONNECTED
+  EXPIRED
+  ERROR
+  DISCONNECTED
+}
+
+/// One connected platform account per Organization+Platform (MVP scope —
+/// a real agency managing multiple accounts per platform is a future
+/// enhancement, not needed for a single politician's office). Token is
+/// encrypted at rest with ENCRYPTION_KEY — see src/lib/social/crypto.ts.
+model SocialAccount {
+  id             String @id @default(uuid())
+  organizationId String
+  platform       Platform
+
+  accountName        String
+  externalAccountId  String
+  accessTokenEncrypted String
+
+  status   SocialAccountStatus @default(CONNECTED)
+  lastError String?
+
+  connectedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedBy  User?        @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+  socialPosts  SocialPost[]
+
+  @@unique([organizationId, platform])
+  @@index([organizationId])
+}
+
+enum SocialPostStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+/// The result of actually publishing one Draft. Idempotent by design —
+/// see publishDraft() in src/lib/social/publish.ts, which checks for an
+/// existing SocialPost before calling the provider so a retry (or a
+/// double cron tick) can never double-post.
+model SocialPost {
+  id             String @id @default(uuid())
+  organizationId String
+  draftId        String @unique
+  socialAccountId String
+
+  platform        Platform
+  platformPostId  String?
+  platformUrl     String?
+  status          SocialPostStatus @default(PENDING)
+  publishedAt     DateTime?
+  errorMessage    String?
+  responseMetadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  draft         Draft         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([socialAccountId])
 }
