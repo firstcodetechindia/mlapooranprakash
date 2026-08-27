@@ -6,6 +6,7 @@ import { requireOrganizationAccess } from "@/lib/security/authorize";
 import { generateDraft, shortenDraftBody, suggestHashtags, type GenerateDraftParams } from "@/lib/content/agent";
 import { factCheckDraft } from "@/lib/factcheck/agent";
 import { approveDraft, rejectDraft, updateDraftBody, updateDraftHashtags } from "@/lib/drafts/service";
+import { publishDraft, scheduleDraft, unscheduleDraft } from "@/lib/social/publish";
 
 export async function generateDraftAction(
   organizationId: string,
@@ -70,4 +71,47 @@ export async function rejectDraftAction(organizationId: string, draftId: string,
   await rejectDraft(organizationId, session.user.id, draftId, reason);
   revalidatePath(`/drafts/${draftId}`);
   revalidatePath("/approvals");
+}
+
+export interface PublishActionResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function publishNowAction(organizationId: string, draftId: string): Promise<PublishActionResult> {
+  const { session } = await requireOrganizationAccess(organizationId, "APPROVER");
+  try {
+    const result = await publishDraft(organizationId, draftId, session.user.id);
+    revalidatePath(`/drafts/${draftId}`);
+    revalidatePath("/calendar");
+    if (result.status === "FAILED") {
+      return { ok: false, error: result.errorMessage ?? "Publishing failed." };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Publishing failed." };
+  }
+}
+
+export async function scheduleDraftAction(
+  organizationId: string,
+  draftId: string,
+  scheduledAt: string,
+): Promise<PublishActionResult> {
+  const { session } = await requireOrganizationAccess(organizationId, "APPROVER");
+  try {
+    await scheduleDraft(organizationId, session.user.id, draftId, new Date(scheduledAt));
+    revalidatePath(`/drafts/${draftId}`);
+    revalidatePath("/calendar");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Scheduling failed." };
+  }
+}
+
+export async function unscheduleDraftAction(organizationId: string, draftId: string) {
+  const { session } = await requireOrganizationAccess(organizationId, "APPROVER");
+  await unscheduleDraft(organizationId, session.user.id, draftId);
+  revalidatePath(`/drafts/${draftId}`);
+  revalidatePath("/calendar");
 }

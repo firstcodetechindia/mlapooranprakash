@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
+  CalendarBlank,
   CheckCircle,
   CircleNotch,
   Hash,
   MagnifyingGlass,
+  PaperPlaneTilt,
   Scissors,
   Warning,
   XCircle,
@@ -20,12 +22,16 @@ import {
 import { TONE_LABELS, LANGUAGE_LABELS } from "@/lib/config/politician";
 import {
   approveDraftAction,
+  publishNowAction,
   rejectDraftAction,
   runFactCheckAction,
   saveDraftBodyAction,
+  scheduleDraftAction,
   shortenDraftAction,
   suggestHashtagsAction,
+  unscheduleDraftAction,
 } from "../actions";
+import { Input } from "@/components/ui/input";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +68,13 @@ interface DraftData {
   hashtags: string[];
   status: string;
   rejectionReason: string | null;
+  scheduledAt: Date | null;
+  socialPost: {
+    status: string;
+    platformUrl: string | null;
+    publishedAt: Date | null;
+    errorMessage: string | null;
+  } | null;
   factChecks: { id: string; claim: string; status: string; explanation: string; source: string | null }[];
   revisions: {
     id: string;
@@ -96,6 +109,10 @@ export function DraftEditor({
   const [factCheckPending, startFactCheck] = useTransition();
   const [approvePending, startApprove] = useTransition();
   const [rejectPending, startReject] = useTransition();
+  const [publishPending, startPublish] = useTransition();
+  const [schedulePending, startSchedule] = useTransition();
+  const [unschedulePending, startUnschedule] = useTransition();
+  const [scheduleValue, setScheduleValue] = useState("");
 
   const maxChars = PLATFORM_MAX_CHARS[draft.platform] ?? 2000;
   const dirty = body !== draft.body;
@@ -143,6 +160,39 @@ export function DraftEditor({
     startReject(async () => {
       await rejectDraftAction(organizationId, draft.id, rejectReason || "No reason given");
       toast.success("Rejected");
+    });
+  }
+
+  function handlePublishNow() {
+    startPublish(async () => {
+      const result = await publishNowAction(organizationId, draft.id);
+      if (result.ok) {
+        toast.success("Published");
+      } else {
+        toast.error(result.error ?? "Publishing failed.");
+      }
+    });
+  }
+
+  function handleSchedule() {
+    if (!scheduleValue) {
+      toast.error("Pick a date and time first.");
+      return;
+    }
+    startSchedule(async () => {
+      const result = await scheduleDraftAction(organizationId, draft.id, scheduleValue);
+      if (result.ok) {
+        toast.success("Scheduled");
+      } else {
+        toast.error(result.error ?? "Scheduling failed.");
+      }
+    });
+  }
+
+  function handleUnschedule() {
+    startUnschedule(async () => {
+      await unscheduleDraftAction(organizationId, draft.id);
+      toast.success("Unscheduled");
     });
   }
 
@@ -288,6 +338,102 @@ export function DraftEditor({
         </div>
 
         <div className="flex flex-col gap-4">
+          {canApprove && draft.status === "APPROVED" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Publish</CardTitle>
+                <CardDescription>Goes out to the connected account.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <Button onClick={handlePublishNow} disabled={publishPending}>
+                  <PaperPlaneTilt className="size-4" />
+                  {publishPending ? "Publishing…" : "Publish now"}
+                </Button>
+                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                  <Input
+                    type="datetime-local"
+                    value={scheduleValue}
+                    onChange={(e) => setScheduleValue(e.target.value)}
+                  />
+                  <Button variant="outline" onClick={handleSchedule} disabled={schedulePending}>
+                    <CalendarBlank className="size-4" />
+                    {schedulePending ? "Scheduling…" : "Schedule"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {draft.status === "SCHEDULED" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Scheduled</CardTitle>
+                <CardDescription>
+                  {draft.scheduledAt ? new Date(draft.scheduledAt).toLocaleString() : ""}
+                </CardDescription>
+              </CardHeader>
+              {canApprove ? (
+                <CardContent className="flex gap-2">
+                  <Button size="sm" onClick={handlePublishNow} disabled={publishPending}>
+                    Publish now
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleUnschedule} disabled={unschedulePending}>
+                    Cancel
+                  </Button>
+                </CardContent>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {draft.status === "PUBLISHED" && draft.socialPost ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle weight="fill" className="size-4 text-primary" />
+                  <CardTitle className="text-base">Published</CardTitle>
+                </div>
+                <CardDescription>
+                  {draft.socialPost.publishedAt
+                    ? new Date(draft.socialPost.publishedAt).toLocaleString()
+                    : ""}
+                </CardDescription>
+              </CardHeader>
+              {draft.socialPost.platformUrl ? (
+                <CardContent>
+                  <a
+                    href={draft.socialPost.platformUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    View live post
+                  </a>
+                </CardContent>
+              ) : null}
+            </Card>
+          ) : null}
+
+          {draft.status === "FAILED" && draft.socialPost?.errorMessage ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-destructive">
+                  <Warning className="size-4" />
+                  <CardTitle className="text-base">Publishing failed</CardTitle>
+                </div>
+                <CardDescription className="text-destructive">
+                  {draft.socialPost.errorMessage}
+                </CardDescription>
+              </CardHeader>
+              {canApprove ? (
+                <CardContent>
+                  <Button size="sm" onClick={handlePublishNow} disabled={publishPending}>
+                    Retry
+                  </Button>
+                </CardContent>
+              ) : null}
+            </Card>
+          ) : null}
+
           {canEdit && !isLocked ? (
             <Card>
               <CardHeader>

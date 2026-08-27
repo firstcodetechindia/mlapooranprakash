@@ -30,6 +30,7 @@ export function getDraft(organizationId: string, draftId: string) {
       rejectedBy: { select: { name: true, email: true } },
       researchReport: true,
       contentOpportunity: { select: { topic: true } },
+      socialPost: true,
     },
   });
 }
