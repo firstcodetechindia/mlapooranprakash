@@ -46,4 +46,25 @@ export class MockAIProvider implements AIProvider {
     const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
     return vector.map((v) => v / magnitude);
   }
+
+  /**
+   * Deliberately NOT a language model — it never adds a single word that
+   * wasn't already in the prompt. It extracts the first few sentences,
+   * which is a safe (if crude) stand-in for summarization: callers like
+   * ResearchAgent already guarantee the prompt contains only verified
+   * material, so "return some of what you gave me" can't invent a fact.
+   * Real summarization requires OPENAI_API_KEY (see OpenAIProvider).
+   */
+  async generateText({ prompt, maxTokens = 200 }: { system?: string; prompt: string; maxTokens?: number }): Promise<string> {
+    const approxCharBudget = maxTokens * 4;
+    const sentences = prompt.split(/(?<=[.!?])\s+/).filter(Boolean);
+
+    let result = "";
+    for (const sentence of sentences) {
+      if (result.length + sentence.length > approxCharBudget) break;
+      result += (result ? " " : "") + sentence;
+    }
+
+    return result || prompt.slice(0, approxCharBudget);
+  }
 }

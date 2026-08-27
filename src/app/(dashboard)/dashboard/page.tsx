@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Target,
   CheckSquare,
@@ -9,6 +10,7 @@ import {
 
 import { requireActiveMembership } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/config/roles";
+import { listOpportunities } from "@/lib/radar/service";
 import {
   Card,
   CardContent,
@@ -16,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { AnimatedCard } from "@/components/dashboard/animated-card";
 
@@ -26,6 +29,8 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const { session, membership } = await requireActiveMembership();
   const firstName = session.user.name?.split(" ")[0] ?? session.user.email;
+  const opportunities = await listOpportunities(membership.organizationId);
+  const topOpportunities = opportunities.slice(0, 4);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -55,11 +60,28 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={Target}
-                title="No opportunities yet"
-                description="Connect reference sources and your knowledge base to start discovering content opportunities."
-              />
+              {topOpportunities.length === 0 ? (
+                <EmptyState
+                  icon={Target}
+                  title="No opportunities yet"
+                  description="Connect reference sources and your knowledge base to start discovering content opportunities."
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {topOpportunities.map((opp) => (
+                    <Link
+                      key={opp.id}
+                      href={`/radar/${opp.id}`}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80"
+                    >
+                      <span className="truncate text-sm">{opp.topic}</span>
+                      <Badge variant="secondary" className="shrink-0 tabular-nums">
+                        {opp.opportunityScore}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </AnimatedCard>
@@ -139,11 +161,22 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={Newspaper}
-                title="Radar is idle"
-                description="Add reference sources and RSS feeds in Settings to start monitoring public information."
-              />
+              {opportunities.length === 0 ? (
+                <EmptyState
+                  icon={Newspaper}
+                  title="Radar is idle"
+                  description="Add reference sources and RSS feeds, then scan for opportunities from Content Radar."
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {opportunities.length} active opportunit
+                  {opportunities.length === 1 ? "y" : "ies"} —{" "}
+                  <Link href="/radar" className="text-primary hover:underline">
+                    view all in Content Radar
+                  </Link>
+                  .
+                </p>
+              )}
             </CardContent>
           </Card>
         </AnimatedCard>

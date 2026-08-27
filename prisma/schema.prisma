@@ -82,13 +82,15 @@ model Organization {
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
 
-  memberships        Membership[]
-  auditLogs          AuditLog[]
-  politicianProfile  PoliticianProfile?
-  referenceSources   ReferenceSource[]
-  referencePosts     ReferencePost[]
-  knowledgeDocuments KnowledgeDocument[]
-  knowledgeChunks    KnowledgeChunk[]
+  memberships         Membership[]
+  auditLogs           AuditLog[]
+  politicianProfile   PoliticianProfile?
+  referenceSources    ReferenceSource[]
+  referencePosts      ReferencePost[]
+  knowledgeDocuments  KnowledgeDocument[]
+  knowledgeChunks     KnowledgeChunk[]
+  contentOpportunities ContentOpportunity[]
+  researchReports     ResearchReport[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -111,6 +113,7 @@ model User {
   memberships         Membership[]
   auditLogs           AuditLog[]
   uploadedDocuments   KnowledgeDocument[]
+  researchReports     ResearchReport[]
 
   @@index([email])
 }
@@ -295,8 +298,9 @@ model ReferencePost {
   publishedAt       DateTime?
   fetchedAt         DateTime  @default(now())
 
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  referenceSource ReferenceSource @relation(fields: [referenceSourceId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referenceSource    ReferenceSource     @relation(fields: [referenceSourceId], references: [id], onDelete: Cascade)
+  contentOpportunity ContentOpportunity?
 
   @@unique([referenceSourceId, externalId])
   @@index([organizationId])
@@ -385,4 +389,86 @@ model KnowledgeChunk {
 
   @@index([organizationId])
   @@index([documentId])
+}
+
+enum OpportunityStatus {
+  NEW
+  RESEARCHING
+  RESEARCHED
+  DRAFTED
+  DISMISSED
+}
+
+/// A scored content idea, surfaced from a ReferencePost by the (rule-based,
+/// not AI-guessed) scoring engine in src/lib/radar/score.ts. Scores are
+/// computed from real signals — post recency, keyword overlap with the
+/// politician's content pillars/constituency, source category/priority —
+/// not an LLM's opinion, so they're explainable and reproducible.
+model ContentOpportunity {
+  id             String  @id @default(uuid())
+  organizationId String
+  referencePostId String? @unique
+
+  topic             String
+  summary           String
+  suggestedPlatform String
+  suggestedFormat   String
+
+  relevanceScore      Int
+  freshnessScore      Int
+  localRelevanceScore Int
+  publicInterestScore Int
+  contentFitScore     Int
+  opportunityScore    Int
+  reasoning           String
+
+  status OpportunityStatus @default(NEW)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  referencePost  ReferencePost?  @relation(fields: [referencePostId], references: [id], onDelete: SetNull)
+  researchReport ResearchReport?
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([opportunityScore])
+}
+
+/// How a claim's provenance is labeled — the app must never present an
+/// AI_INFERENCE or UNVERIFIED item as if it were VERIFIED. See
+/// src/lib/research/agent.ts, the only place these get assigned.
+enum FactStatus {
+  VERIFIED
+  USER_PROVIDED
+  AI_INFERENCE
+  UNVERIFIED
+}
+
+/// Output of the Research Agent for one topic. Facts/sources are stored as
+/// JSON (an ordered list of { statement, status, source }) rather than
+/// normalized tables — they're always read as a whole report, never
+/// queried individually, so a join model would add cost without adding
+/// capability at this stage.
+model ResearchReport {
+  id             String  @id @default(uuid())
+  organizationId String
+  contentOpportunityId String? @unique
+
+  topic      String
+  summary    String
+  confidence Int
+  facts      Json
+  sources    Json
+
+  createdById String?
+
+  createdAt DateTime @default(now())
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  contentOpportunity  ContentOpportunity? @relation(fields: [contentOpportunityId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
 }
