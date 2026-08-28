@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { recordAuditLog } from "@/lib/audit/log";
+import { notifyUser } from "@/lib/notifications/service";
 import { EDITABLE_DRAFT_STATUSES } from "@/lib/config/content";
 
 export function listDrafts(organizationId: string, statuses?: string[]) {
@@ -143,6 +144,15 @@ export async function approveDraft(organizationId: string, actorUserId: string, 
     newState: { status: "APPROVED" },
   });
 
+  if (draft.createdById !== actorUserId) {
+    await notifyUser(organizationId, draft.createdById, {
+      type: "DRAFT_APPROVED",
+      title: "Your draft was approved",
+      body: draft.body.slice(0, 140),
+      link: `/drafts/${draftId}`,
+    });
+  }
+
   return updated;
 }
 
@@ -173,6 +183,15 @@ export async function rejectDraft(
     previousState: { status: draft.status },
     newState: { status: "REJECTED", reason },
   });
+
+  if (draft.createdById !== actorUserId) {
+    await notifyUser(organizationId, draft.createdById, {
+      type: "DRAFT_REJECTED",
+      title: "Your draft was rejected",
+      body: reason,
+      link: `/drafts/${draftId}`,
+    });
+  }
 
   return updated;
 }

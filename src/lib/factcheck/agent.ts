@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { recordAuditLog } from "@/lib/audit/log";
+import { notifyRole } from "@/lib/notifications/service";
 import type { ResearchFact } from "@/lib/research/agent";
 
 const FACTUAL_PATTERN = /\d|%|percent|crore|lakh|million|billion|km\b/i;
@@ -86,6 +87,7 @@ export async function factCheckDraft(organizationId: string, draftId: string) {
   }
 
   const hasUnverified = results.some((r) => r.status === "UNVERIFIED");
+  const wasAlreadyInReview = draft.status === "NEEDS_REVIEW";
   await db.draft.update({
     where: { id: draftId },
     data: { status: "NEEDS_REVIEW" },
@@ -98,6 +100,18 @@ export async function factCheckDraft(organizationId: string, draftId: string) {
     resourceId: draftId,
     metadata: { claimsChecked: results.length, hasUnverified },
   });
+
+  // Only on first entry into NEEDS_REVIEW — re-running the fact-checker
+  // after every manual edit (saveDraftBodyAction, shortenDraftAction) would
+  // otherwise re-notify every approver on each keystroke-driven save.
+  if (!wasAlreadyInReview) {
+    await notifyRole(organizationId, "APPROVER", {
+      type: "DRAFT_NEEDS_REVIEW",
+      title: "Draft needs review",
+      body: draft.body.slice(0, 140),
+      link: `/drafts/${draftId}`,
+    });
+  }
 
   return results;
 }

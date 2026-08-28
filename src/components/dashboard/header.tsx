@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { Bell, CheckSquare } from "@phosphor-icons/react/ssr";
+import { CheckSquare } from "@phosphor-icons/react/ssr";
 import type { Session } from "next-auth";
 
 import type { SessionMembership } from "@/types/next-auth";
 import { db } from "@/lib/db/client";
+import { listNotifications, countUnread } from "@/lib/notifications/service";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { UserMenu } from "@/components/dashboard/user-menu";
+import { NotificationsMenu } from "@/components/dashboard/notifications-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,6 +37,10 @@ export async function DashboardHeader({
   const pendingCount = await db.draft.count({
     where: { organizationId: membership.organizationId, status: { in: ["FACT_CHECK", "NEEDS_REVIEW"] } },
   });
+  const [notifications, unreadCount] = await Promise.all([
+    listNotifications(user.id),
+    countUnread(user.id),
+  ]);
 
   return (
     <header
@@ -76,15 +82,7 @@ export async function DashboardHeader({
               : "Approval queue — nothing waiting yet"}
           </TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" disabled>
-              <Bell className="size-4" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>No notifications yet</TooltipContent>
-        </Tooltip>
+        <NotificationsMenu notifications={notifications} unreadCount={unreadCount} />
         <UserMenu
           name={user.name}
           email={user.email}

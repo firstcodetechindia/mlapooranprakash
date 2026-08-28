@@ -97,6 +97,7 @@ model Organization {
   mediaAssets         MediaAsset[]
   socialAccounts      SocialAccount[]
   socialPosts         SocialPost[]
+  notifications       Notification[]
 
   @@index([slug])
   @@index([stripeCustomerId])
@@ -126,6 +127,7 @@ model User {
   draftRevisions      DraftRevision[]
   mediaAssets         MediaAsset[]
   connectedSocialAccounts SocialAccount[]
+  notifications       Notification[]
 
   @@index([email])
 }
@@ -718,4 +720,33 @@ model SocialPost {
 
   @@index([organizationId])
   @@index([socialAccountId])
+}
+
+enum NotificationType {
+  DRAFT_NEEDS_REVIEW
+  DRAFT_APPROVED
+  DRAFT_REJECTED
+  DRAFT_PUBLISHED
+  DRAFT_PUBLISH_FAILED
+}
+
+/// In-app only — no email/SMS delivery. Created by the single writer
+/// createNotification() in src/lib/notifications/service.ts, same
+/// single-writer pattern as AuditLog.
+model Notification {
+  id             String            @id @default(uuid())
+  organizationId String
+  userId         String
+  type           NotificationType
+  title          String
+  body           String
+  link           String?
+  readAt         DateTime?
+  createdAt      DateTime          @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([organizationId])
 }

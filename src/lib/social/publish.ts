@@ -2,6 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db/client";
 import { recordAuditLog } from "@/lib/audit/log";
+import { notifyUser, notifyRole } from "@/lib/notifications/service";
 import { getSocialProvider } from "./index";
 
 export class DraftNotApprovedError extends Error {
@@ -129,6 +130,15 @@ export async function publishDraft(
       newState: { platformPostId: result.platformPostId, platform: draft.platform },
     });
 
+    if (draft.createdById !== actorUserId) {
+      await notifyUser(organizationId, draft.createdById, {
+        type: "DRAFT_PUBLISHED",
+        title: "Draft published",
+        body: draft.body.slice(0, 140),
+        link: `/drafts/${draftId}`,
+      });
+    }
+
     return socialPost;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown publishing error";
@@ -156,6 +166,16 @@ export async function publishDraft(
       resourceType: "Draft",
       resourceId: draftId,
       metadata: { error: message },
+    });
+
+    // Actionable, not just informational — a failed publish needs an
+    // Approver to hit Retry, so this goes to the role that can act on it
+    // rather than just the original actor (who may have been the cron).
+    await notifyRole(organizationId, "APPROVER", {
+      type: "DRAFT_PUBLISH_FAILED",
+      title: "Publishing failed",
+      body: message,
+      link: `/drafts/${draftId}`,
     });
 
     return socialPost;
