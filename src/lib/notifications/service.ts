@@ -58,21 +58,24 @@ export async function notifyRole(
   await Promise.all(members.map((m) => createNotification(organizationId, m.userId, input)));
 }
 
-export function listNotifications(userId: string, limit = 10) {
+// Scoped by organizationId, not just userId — a user with memberships in
+// more than one org should only see the current org's notifications in
+// its bell, not a mix of every org they've ever belonged to.
+export function listNotifications(userId: string, organizationId: string, limit = 10) {
   return db.notification.findMany({
-    where: { userId },
+    where: { userId, organizationId },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
 }
 
-export function countUnread(userId: string) {
-  return db.notification.count({ where: { userId, readAt: null } });
+export function countUnread(userId: string, organizationId: string) {
+  return db.notification.count({ where: { userId, organizationId, readAt: null } });
 }
 
-export async function markAllRead(userId: string) {
+export async function markAllRead(userId: string, organizationId: string) {
   await db.notification.updateMany({
-    where: { userId, readAt: null },
+    where: { userId, organizationId, readAt: null },
     data: { readAt: new Date() },
   });
 }

@@ -12,6 +12,7 @@ import {
   MAX_UPLOAD_BYTES,
 } from "@/lib/config/knowledge";
 import { ingestKnowledgeDocument } from "@/lib/knowledge/service";
+import { matchesClaimedType } from "@/lib/security/file-signature";
 
 const metaSchema = z.object({
   organizationId: z.string().uuid(),
@@ -52,6 +53,12 @@ export async function POST(request: Request) {
     const { session } = await requireOrganizationAccess(parsed.data.organizationId, "EDITOR");
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!matchesClaimedType(buffer, file.type)) {
+      return NextResponse.json(
+        { error: "File contents don't match the claimed file type." },
+        { status: 400 },
+      );
+    }
     const document = await ingestKnowledgeDocument({
       organizationId: parsed.data.organizationId,
       actorUserId: session.user.id,

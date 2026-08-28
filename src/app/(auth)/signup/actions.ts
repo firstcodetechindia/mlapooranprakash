@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 
 import { signIn } from "@/lib/auth";
@@ -8,6 +9,7 @@ import {
   EmailAlreadyRegisteredError,
   signupSchema,
 } from "@/lib/auth/signup";
+import { enforceRateLimit, RateLimitError } from "@/lib/security/rate-limit";
 
 export interface SignupFormState {
   error?: string;
@@ -34,6 +36,16 @@ export async function signupAction(
       }
     }
     return { error: "Please fix the highlighted fields.", fieldErrors };
+  }
+
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  try {
+    await enforceRateLimit(`signup:${ip}`, 5, 3600);
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return { error: "Too many signup attempts from this network. Please try again later." };
+    }
+    throw error;
   }
 
   try {

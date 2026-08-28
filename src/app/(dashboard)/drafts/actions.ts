@@ -7,12 +7,19 @@ import { generateDraft, shortenDraftBody, suggestHashtags, type GenerateDraftPar
 import { factCheckDraft } from "@/lib/factcheck/agent";
 import { approveDraft, rejectDraft, updateDraftBody, updateDraftHashtags } from "@/lib/drafts/service";
 import { publishDraft, scheduleDraft, unscheduleDraft } from "@/lib/social/publish";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+
+// Shared budget across every AI-triggering action (generate, shorten,
+// hashtags, research) rather than one bucket per action — the thing being
+// protected is the org's total AI spend, not any single feature.
+const AI_RATE_LIMIT = { limit: 60, windowSeconds: 3600 };
 
 export async function generateDraftAction(
   organizationId: string,
   params: GenerateDraftParams,
 ) {
   const { session } = await requireOrganizationAccess(organizationId, "EDITOR");
+  await enforceRateLimit(`ai:${organizationId}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowSeconds);
   const draft = await generateDraft(organizationId, session.user.id, params);
   await factCheckDraft(organizationId, draft.id);
   revalidatePath("/radar");
@@ -44,6 +51,7 @@ export async function shortenDraftAction(
   targetChars: number,
 ) {
   const { session } = await requireOrganizationAccess(organizationId, "EDITOR");
+  await enforceRateLimit(`ai:${organizationId}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowSeconds);
   const shortened = await shortenDraftBody(body, targetChars);
   await updateDraftBody(organizationId, session.user.id, draftId, shortened, "ai_edit", "Shortened");
   await factCheckDraft(organizationId, draftId);
@@ -53,6 +61,7 @@ export async function shortenDraftAction(
 
 export async function suggestHashtagsAction(organizationId: string, draftId: string, body: string) {
   const { session } = await requireOrganizationAccess(organizationId, "EDITOR");
+  await enforceRateLimit(`ai:${organizationId}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowSeconds);
   const hashtags = await suggestHashtags(organizationId, body);
   await updateDraftHashtags(organizationId, session.user.id, draftId, hashtags);
   revalidatePath(`/drafts/${draftId}`);

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { recordAuditLog } from "@/lib/audit/log";
 import { edgeAuthConfig } from "@/lib/auth/edge-config";
+import { enforceRateLimit, RateLimitError } from "@/lib/security/rate-limit";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -24,6 +25,17 @@ export const authConfig: NextAuthConfig = {
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
+
+        // Keyed by the attempted email, not IP — this is a brute-force
+        // guard against one targeted account, not general abuse
+        // prevention, so it has to hold even from behind a shared/rotating
+        // IP (an office network, a VPN, a botnet).
+        try {
+          await enforceRateLimit(`login:${email.toLowerCase()}`, 8, 300);
+        } catch (error) {
+          if (error instanceof RateLimitError) return null;
+          throw error;
+        }
 
         const user = await db.user.findUnique({
           where: { email: email.toLowerCase() },

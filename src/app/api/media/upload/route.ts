@@ -8,6 +8,7 @@ import {
 } from "@/lib/security/authorize";
 import { ACCEPTED_MEDIA_MIME_TYPES, MAX_MEDIA_UPLOAD_BYTES } from "@/lib/config/media";
 import { uploadMedia } from "@/lib/media/service";
+import { matchesClaimedType } from "@/lib/security/file-signature";
 
 const metaSchema = z.object({
   organizationId: z.string().uuid(),
@@ -48,6 +49,12 @@ export async function POST(request: Request) {
     const { session } = await requireOrganizationAccess(parsed.data.organizationId, "EDITOR");
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!matchesClaimedType(buffer, file.type)) {
+      return NextResponse.json(
+        { error: "File contents don't match the claimed file type." },
+        { status: 400 },
+      );
+    }
     const tags = parsed.data.tags
       ? parsed.data.tags.split(",").map((t) => t.trim()).filter(Boolean)
       : [];

@@ -38,6 +38,11 @@ export async function GET(
       "Content-Type": asset.mimeType,
       "Content-Length": String(buffer.byteLength),
       "Cache-Control": "private, max-age=3600",
+      // Defense in depth against the stored mimeType being a client-supplied
+      // value (see matchesClaimedType() in the upload route) — this stops a
+      // browser from ever content-sniffing the body into something other
+      // than what Content-Type says, even if a mismatch somehow got stored.
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

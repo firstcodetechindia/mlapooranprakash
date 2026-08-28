@@ -81,7 +81,13 @@ export async function publishDraft(
   // record of the last attempt, not a lock, so a retry is allowed to
   // replace it. Without this distinction, "Retry" on a failed publish
   // would silently do nothing and just hand back the same failure.
-  const existingPost = await db.socialPost.findUnique({ where: { draftId } });
+  //
+  // Scoped by organizationId, not just draftId: draftId alone is a
+  // cross-tenant lookup key here (SocialPost.draftId is globally unique,
+  // but that says nothing about who's allowed to read it) — an org could
+  // otherwise pass another org's draftId and get back that org's
+  // published-post record.
+  const existingPost = await db.socialPost.findFirst({ where: { draftId, organizationId } });
   if (existingPost && existingPost.status === "PUBLISHED") return existingPost;
 
   const draft = await db.draft.findFirstOrThrow({ where: { id: draftId, organizationId } });

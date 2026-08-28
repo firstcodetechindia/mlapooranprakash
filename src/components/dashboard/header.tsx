@@ -38,8 +38,8 @@ export async function DashboardHeader({
     where: { organizationId: membership.organizationId, status: { in: ["FACT_CHECK", "NEEDS_REVIEW"] } },
   });
   const [notifications, unreadCount] = await Promise.all([
-    listNotifications(user.id),
-    countUnread(user.id),
+    listNotifications(user.id, membership.organizationId),
+    countUnread(user.id, membership.organizationId),
   ]);
 
   return (

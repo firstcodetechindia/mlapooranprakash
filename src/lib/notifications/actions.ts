@@ -7,6 +7,8 @@ import { markAllRead } from "@/lib/notifications/service";
 
 export async function markAllReadAction() {
   const session = await requireSession();
-  await markAllRead(session.user.id);
+  const organizationId = session.user.memberships[0]?.organizationId;
+  if (!organizationId) return;
+  await markAllRead(session.user.id, organizationId);
   revalidatePath("/", "layout");
 }

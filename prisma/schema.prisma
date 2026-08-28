@@ -750,3 +750,15 @@ model Notification {
   @@index([userId, readAt])
   @@index([organizationId])
 }
+
+/// Fixed-window rate limiting, backed by Postgres instead of Redis so it
+/// works the same in every Vercel serverless instance without adding
+/// infrastructure. One row per limited key (e.g. "login:user@example.com",
+/// "ai-generate:org-id"). See enforceRateLimit() in
+/// src/lib/security/rate-limit.ts, the only reader/writer.
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
