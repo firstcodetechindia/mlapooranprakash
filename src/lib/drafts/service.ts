@@ -19,6 +19,23 @@ export function listDrafts(organizationId: string, statuses?: string[]) {
   });
 }
 
+export function listCalendarDrafts(organizationId: string, rangeStart: Date, rangeEnd: Date) {
+  return db.draft.findMany({
+    where: {
+      organizationId,
+      OR: [
+        { status: "SCHEDULED", scheduledAt: { gte: rangeStart, lt: rangeEnd } },
+        { status: "PUBLISHED", socialPost: { publishedAt: { gte: rangeStart, lt: rangeEnd } } },
+      ],
+    },
+    include: {
+      socialPost: true,
+      contentOpportunity: { select: { topic: true } },
+    },
+    orderBy: { scheduledAt: "asc" },
+  });
+}
+
 export function getDraft(organizationId: string, draftId: string) {
   return db.draft.findFirst({
     where: { id: draftId, organizationId },
