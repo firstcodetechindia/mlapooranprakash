@@ -700,6 +700,15 @@ model SocialPost {
   errorMessage    String?
   responseMetadata Json?
 
+  /// Last analytics snapshot fetched from the platform — see
+  /// refreshPostAnalytics() in src/lib/analytics/service.ts. Null fields
+  /// mean not yet fetched or the platform doesn't expose that metric.
+  impressions        Int?
+  likes              Int?
+  comments           Int?
+  shares             Int?
+  analyticsUpdatedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

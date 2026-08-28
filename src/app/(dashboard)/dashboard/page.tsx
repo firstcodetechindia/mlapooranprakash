@@ -11,7 +11,8 @@ import {
 import { requireActiveMembership } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/config/roles";
 import { listOpportunities } from "@/lib/radar/service";
-import { listDrafts } from "@/lib/drafts/service";
+import { listDrafts, listCalendarDrafts } from "@/lib/drafts/service";
+import { getAnalyticsSummary } from "@/lib/analytics/service";
 import { DRAFT_STATUS_LABELS, PLATFORM_LABELS } from "@/lib/config/content";
 import {
   Card,
@@ -28,12 +29,24 @@ export const metadata: Metadata = {
   title: "Today — Political Social Command Center",
 };
 
+function formatNumber(n: number): string {
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}
+
 export default async function DashboardPage() {
   const { session, membership } = await requireActiveMembership();
   const firstName = session.user.name?.split(" ")[0] ?? session.user.email;
   const opportunities = await listOpportunities(membership.organizationId);
   const topOpportunities = opportunities.slice(0, 4);
   const pendingDrafts = await listDrafts(membership.organizationId, ["FACT_CHECK", "NEEDS_REVIEW"]);
+
+  const now = new Date();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const upcoming = (await listCalendarDrafts(membership.organizationId, now, monthEnd))
+    .filter((d) => d.status === "SCHEDULED")
+    .slice(0, 4);
+
+  const analyticsSummary = await getAnalyticsSummary(membership.organizationId, 30);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -142,11 +155,33 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={CalendarBlank}
-                title="Nothing scheduled"
-                description="Once posts are approved, their timeline will appear here."
-              />
+              {upcoming.length === 0 ? (
+                <EmptyState
+                  icon={CalendarBlank}
+                  title="Nothing scheduled"
+                  description="Once posts are approved, their timeline will appear here."
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {upcoming.map((draft) => (
+                    <Link
+                      key={draft.id}
+                      href={`/drafts/${draft.id}`}
+                      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:opacity-80"
+                    >
+                      <span className="truncate text-sm">{draft.body}</span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Badge variant="outline">{PLATFORM_LABELS[draft.platform]}</Badge>
+                        {draft.scheduledAt ? (
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(draft.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        ) : null}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </AnimatedCard>
@@ -163,11 +198,25 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EmptyState
-                icon={TrendUp}
-                title="No analytics yet"
-                description="Connect a social account to start collecting performance data."
-              />
+              {analyticsSummary.totals.postCount === 0 ? (
+                <EmptyState
+                  icon={TrendUp}
+                  title="No analytics yet"
+                  description="Connect a social account to start collecting performance data."
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xl font-semibold tabular-nums">
+                      {formatNumber(analyticsSummary.totals.impressions)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Impressions, last 30 days</p>
+                  </div>
+                  <Link href="/analytics" className="text-sm text-primary hover:underline">
+                    View analytics
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         </AnimatedCard>

@@ -31,7 +31,7 @@ export const primaryNav: NavItem[] = [
   { label: "Media Library", href: "/media", icon: ImageIcon, available: true },
   { label: "Knowledge Base", href: "/knowledge", icon: BookOpen, available: true },
   { label: "Reference Sources", href: "/sources/reference-accounts", icon: RssSimple, available: true },
-  { label: "Analytics", href: "/analytics", icon: ChartBar, available: false },
+  { label: "Analytics", href: "/analytics", icon: ChartBar, available: true },
   { label: "Audit Log", href: "/audit", icon: ShieldCheck, available: true },
 ];
 
