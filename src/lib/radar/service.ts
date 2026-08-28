@@ -33,9 +33,12 @@ export function getOpportunity(organizationId: string, opportunityId: string) {
  * Scans recently ingested ReferencePosts that don't already have a
  * ContentOpportunity, scores each with the deterministic rule-based
  * engine (see score.ts), and creates opportunities above a minimum
- * threshold. Manual/on-demand for now — the same scheduling story as
- * "Fetch now" on reference sources (see docs/architecture.md once the
- * background worker phase lands).
+ * threshold. Manual/on-demand for now, same as "Fetch now" on reference
+ * sources — both are rate-limited per organization (see
+ * src/lib/security/rate-limit.ts) rather than run on a schedule. Could
+ * move to a periodic Vercel Cron sweep the same way scheduled publishing
+ * does (src/app/api/cron/publish-scheduled) if this needs to run
+ * unattended.
  */
 export async function generateOpportunities(organizationId: string, actorUserId: string) {
   const [profile, candidatePosts] = await Promise.all([

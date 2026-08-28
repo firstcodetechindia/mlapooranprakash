@@ -6,10 +6,11 @@ import { auth } from "@/lib/auth";
 import type { SessionMembership } from "@/types/next-auth";
 
 /**
- * Phase 1 always operates on the caller's first Organization membership.
- * Once the product needs to support switching between multiple
- * organizations in one session, replace this with a cookie-backed
- * "active organization" selection.
+ * Always operates on the caller's first Organization membership. Since
+ * there's no team-invitation flow yet (see signup.ts), most users only
+ * ever have one — this becomes a real limitation once that changes.
+ * Replace with a cookie-backed "active organization" selection at that
+ * point.
  */
 export async function requireActiveMembership(): Promise<{
   session: Session;

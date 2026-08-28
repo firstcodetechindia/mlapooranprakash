@@ -12,6 +12,7 @@ import {
   type ReferenceSourceInput,
 } from "@/lib/sources/service";
 import { fetchReferenceSource, SourceNotFetchableError } from "@/lib/sources/rss";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 
 export interface SourceActionResult {
   ok: boolean;
@@ -91,6 +92,10 @@ export async function fetchSourceNowAction(
   sourceId: string,
 ): Promise<FetchActionResult> {
   const { session } = await requireOrganizationAccess(organizationId, "EDITOR");
+  // Unbounded external fetch trigger otherwise — same per-org budget
+  // reasoning as the AI-cost actions, just guarding against hammering a
+  // third-party feed instead of API spend.
+  await enforceRateLimit(`fetch-source:${organizationId}`, 30, 3600);
 
   try {
     const result = await fetchReferenceSource(sourceId, organizationId, session.user.id);

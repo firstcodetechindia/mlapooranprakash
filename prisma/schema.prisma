@@ -1,10 +1,9 @@
 // Political Social Command Center — database schema.
 //
-// This file grows incrementally with each build phase (see /docs/architecture.md).
-// Phase 1 ships only the foundation needed for authentication, multi-tenant
-// organizations, and role-based access control. Every later model added in
-// subsequent phases must include an organizationId (or a path to one) so
-// tenant isolation can be enforced consistently — see /src/lib/security.
+// Every model that stores tenant data includes an organizationId (or a path
+// to one via a relation) so tenant isolation can be enforced consistently —
+// see requireOrganizationAccess() in /src/lib/security/authorize.ts, which
+// every cross-organization query must go through.
 
 generator client {
   provider = "prisma-client"

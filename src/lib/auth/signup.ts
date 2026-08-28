@@ -33,9 +33,11 @@ export class EmailAlreadyRegisteredError extends Error {
 
 /**
  * Creates a brand-new Organization together with its first User, who
- * becomes SUPER_ADMIN. This is the only way an Organization comes into
- * existence in Phase 1 — later phases add team invitations (Membership
- * rows for additional users) on top of it.
+ * becomes SUPER_ADMIN. This is currently the only way an Organization or a
+ * Membership row comes into existence through the app itself — there is no
+ * team-invitation flow yet, so adding a teammate to an existing
+ * organization today means a manual Membership insert (see prisma/seed.ts
+ * for the pattern), not anything reachable from the UI.
  */
 export async function createOrganizationWithOwner(input: SignupInput) {
   const existing = await db.user.findUnique({ where: { email: input.email } });

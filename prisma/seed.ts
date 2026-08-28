@@ -1,9 +1,8 @@
 // Demo/dev seed data. Everything here is fictional — no real political
-// claims, quotes, or figures. See /docs/development.md for how to run it.
-//
-// Phase 1 only seeds the auth/org/RBAC foundation (one demo organization
-// with one user per role). Later phases extend this file with reference
-// sources, opportunities, drafts, and analytics as those models ship.
+// claims, quotes, or figures. Run with `pnpm db:seed` — see the README's
+// Local setup section. Only seeds the auth/org/RBAC foundation (one demo
+// organization with one user per role); every other feature works from an
+// empty state once you sign in with one of those accounts.
 
 import bcrypt from "bcryptjs";
 
