@@ -187,6 +187,11 @@ export async function publishDraft(
  * can't run a persistent worker, so this is invoked periodically by Vercel
  * Cron rather than a BullMQ delayed job — see docs/deployment.md. Safe to
  * call as often as needed: publishDraft() is idempotent per draft.
+ *
+ * On Vercel's Hobby plan, cron jobs are capped at once per day (see
+ * vercel.json), so a post scheduled for a specific time of day can publish
+ * up to ~24h late — upgrade to Pro (or trigger this route from an external
+ * scheduler) for anything closer to real-time. See docs/deployment.md.
  */
 export async function runScheduledPublishing() {
   const due = await db.draft.findMany({

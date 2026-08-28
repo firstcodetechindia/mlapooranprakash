@@ -7,6 +7,10 @@ import { runScheduledPublishing } from "@/lib/social/publish";
  * can't host a persistent BullMQ worker, so due drafts are swept
  * periodically instead of dispatched to a delayed queue. Authenticated
  * with CRON_SECRET so this can't be hit by anyone who finds the URL.
+ *
+ * Runs once daily on the Hobby plan (Vercel's cap for that tier) — see the
+ * schedule comment in vercel.json and docs/deployment.md for the Pro-plan
+ * upgrade path to a tighter interval.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
